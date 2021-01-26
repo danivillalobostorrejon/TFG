@@ -1,0 +1,130 @@
+---
+title: "ARIMA"
+author: "Daniel Villalobos Torrejón"
+date: "29 de noviembre de 2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+load("cons_tot.Rdata")
+load("gast_tot.Rdata")
+```
+
+```{r}
+library(forecast)
+library(urca)
+library(ggplot2)
+library(TSA)
+library(TSstudio)
+library(tseries)
+library(cowplot)
+library(grid)
+library(gridExtra)
+library(lmtest)
+```
+
+```{r}
+cons <- ts(cons_tot$Total, frequency=12, start = c(2014,1), end = c(2018,12))
+cons_test <- ts(cons_tot$Total[61:72],frequency = 12, start = c(2019,1))
+desp <- ts(gast_tot$Total, frequency=12, start = c(2014,1), end = c(2018,12))
+desp_test <- ts(gast_tot$Total[61:72], frequency=12,start= c(2019,1))
+```
+```{r}
+# component estacional
+decomp = stl(cons, s.window = "periodic")
+deseasonal <- seasadj(decomp)
+plot (decomp)
+```
+
+```{r}
+adf.test(cons, alternative ="stationary")
+
+p1 <- ggAcf(cons, lag.max = 100,main="")
+p2 <- ggPacf(cons, lag.max = 100, main="")
+
+grid.arrange(p1,p2, ncol=1)
+
+arima1<- arima(x = cons, order = c(1,0,1), seasonal = list(order = c(1,0,1)))
+coeftest(arima1)
+
+plot.ts(arima1$residuals, ylab="Residus", xlab="Temps")
+
+r1 <- ggAcf(arima1$residuals, main="")
+r2 <- ggPacf(arima1$residuals, main="")
+grid.arrange(r1,r2, ncol=1)
+
+qqnorm(arima1$residuals);qqline(arima1$residuals)
+shapiro.test(arima1$residuals)
+
+
+prediccio <- predict(arima1, n.ahead = 12)
+class(prediccio)
+
+
+
+errors <- cons_test - prediccio$pred
+ts.plot(errors)
+
+eqm <- sum(errors*errors)/12
+eqm
+reqm <- sqrt(eqm)
+reqm
+eam <- sum(abs(errors))/12
+eam
+epam <- (sum(abs(errors)/abs(cons_test))/12)
+epam*100
+
+result_consum <- data.frame(prediccio$pred,cons_test, errors)
+colnames(result_consum) <- c("Predicció", "Valor Real", "Error")
+```
+```{r}
+adf.test(desp, alternative = "stationary")
+
+
+p3 <- ggAcf(desp, lag.max=100, main="")
+p4 <- ggPacf(desp, main="", lag.max = 100)
+
+grid.arrange(p3,p4, ncol=1)
+
+
+arima2 <- arima(x = desp, order = c(1,0,1), seasonal = list (order = c(1,0,1)))
+arima2
+coeftest(arima2)
+
+
+plot(arima2$residuals)
+
+r3 <- ggAcf(arima2$residuals, lag.max=100, main="")
+r4 <- ggPacf(arima2$residuals, lag.max=100, main="")
+grid.arrange(r3,r4, ncol=1)
+
+qqnorm(arima2$residuals);qqline(arima2$residuals)
+shapiro.test(arima2$residuals)
+
+prediccio_2 <- predict(arima2, n.ahead = 12)
+
+
+
+
+errors_2 <- desp_test - prediccio_2$pred
+ts.plot(errors_2)
+
+eqm_2 <- sum(errors_2*errors_2)/12
+eqm_2
+reqm_2 <- sqrt(eqm_2)
+reqm_2
+eam_2 <- sum(abs(errors_2))/12
+eam_2
+epam_2 <- (sum(abs(errors_2)/abs(desp_test))/12)
+epam_2*100
+
+result_despesa <- data.frame(prediccio_2$pred,desp_test, errors_2)
+colnames(result_despesa) <- c("Predicció", "Valor Real", "Error")
+```
+
+
+

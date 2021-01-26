@@ -1,0 +1,212 @@
+---
+title: "SVR"
+author: "Daniel Villalobos Torrejón"
+date: "20 de diciembre de 2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+#install.packages("e1071")
+library(e1071)
+library(TSstudio)
+library(ggplot2)
+```
+
+```{r}
+load("cons_tot.Rdata")
+load("gast_tot.Rdata")
+```
+```{r}
+train <- cons_tot[1:60,]
+train2 <- cons_tot[1:60,2:ncol(train)]
+val  <- cons_tot[61:72,]
+```
+
+#modelo 1
+```{r}
+
+model2 <- svm(Total~Fecha, train, type = 'eps-regression')
+ggplot() +
+  geom_point(aes(x = train$Fecha, y = train$Total), colour = "red") +
+  geom_line(aes(x = train$Fecha, y = predict(model2, newdata = train)), colour = "blue")+
+  ggtitle("Consum per càpita (Regression Model)") +
+  xlab("") +
+  ylab("")
+
+
+#tuenamos el modelo
+
+tuneResult1 <- tune(svm, Total ~ Fecha,  data = train,
+              ranges = list(epsilon = seq(0,1,0.05), cost =1:10)
+)
+
+plot(tuneResult1)
+print(tuneResult1)
+
+tunedVals <- tuneResult1$best.model
+predictYsvm2 <- predict(tunedVals, train)
+
+# nuevo modelo
+ggplot(data=train, aes(x=Fecha)) +
+  geom_point(aes(y = Total), color = "red") +
+  geom_line(aes(y = predict(model2, newdata = train)), colour = "blue")+
+  geom_line(aes(y = predict(tunedVals, train)), colour="black")+
+  ggtitle("Consum per càpita (Regression Model)") +scale_colour_manual("", breaks = c("TempMax", "TempMedia"), values = c("red",  "blue")) +
+
+  xlab("") +
+  ylab("")
+  
+  
+errors <- val$Total - predict(model2, val)
+eqm <- sum(errors*errors)/12
+eqm
+reqm <- sqrt(eqm)
+reqm
+eam <- sum(abs(errors))/12
+eam
+epam <- (sum(abs(errors)/abs(val$Total))/12)
+epam*100  
+
+
+
+errors2 <- val$Total - predict(tunedVals, val)
+eqm2 <- sum(errors2*errors2)/12
+eqm2
+reqm2 <- sqrt(eqm2)
+reqm
+eam2 <- sum(abs(errors2))/12
+eam2
+epam2 <- (sum(abs(errors2)/abs(val$Total))/12)
+epam2*100
+```
+
+#modelo 2
+```{r}
+model <- svm (Total ~ ., train, type = "eps-regression")
+
+ggplot(data =train, aes(x=Fecha)) +
+  geom_point(aes(y = Total), colour = "red") +
+  geom_line(aes(y = predict(model, newdata = train)), colour = "blue")+
+  ggtitle("Consum per càpita (Regression Model)") +
+  xlab("") +
+  ylab("")
+
+# tune model
+tuneResult <- tune(svm, Total ~ .,  data = train,
+              ranges = list(epsilon = seq(0,1,0.05), cost =1:10)
+)
+
+plot(tuneResult)
+print(tuneResult)
+
+tunedVals2 <- tuneResult$best.model
+
+
+# nuevo modelo
+ggplot(data=train, aes(x=Fecha)) +
+  geom_point(aes(y = Total), color = "black") +
+  geom_line(aes(y = predict(model, newdata = train)), colour = "blue")+
+  geom_line(aes(y = predict(tunedVals2, train)), colour="red")+
+  ggtitle("Consum per càpita (Regression Model)")  +
+
+  xlab("") +
+  ylab("")
+
+# errors
+
+
+errors <- val$Total[1:11] - predict(tunedVals2, newdata=val)
+errors
+eqm <- sum(errors*errors)/11
+eqm
+reqm <- sqrt(eqm)
+reqm
+eam <- sum(abs(errors))/11
+eam
+epam <- (sum(abs(errors)/abs(val$Total[1:11]))/11)
+epam*100
+
+```
+
+# despesa
+
+```{r}
+desp <- gast_tot[1:60,]
+desp_test <- gast_tot[61:72,]
+```
+
+```{r}
+model_desp <- svm(Total~Fecha, desp, type = 'eps-regression')
+ggplot(aes(x=Fecha), data=desp) +
+  geom_point(aes(x = Fecha, y = Total), colour = "red") +
+  geom_line(aes(x = Fecha, y = predict(model_desp, newdata = desp)), colour = "blue")+
+  ggtitle("Consum per càpita (Regression Model)") +
+  xlab("") +
+  ylab("")
+
+tune_desp <- tune(svm, Total ~ Fecha,  data = desp,
+              ranges = list(epsilon = seq(0,1,0.05), cost =1:10)
+)
+
+plot(tune_desp)
+print(tune_desp)
+
+tuned_desp <- tune_desp$best.model
+
+ggplot(data=desp, aes(x=Fecha)) +
+  geom_point(aes(y = Total), color = "black") +
+  geom_line(aes(y = predict(model_desp, newdata = desp)), colour = "blue")+
+  geom_line(aes(y = predict(tuned_desp, desp)), colour="red")+
+  ggtitle("Consum per càpita (Regression Model)")  +
+
+  xlab("") +
+  ylab("")
+```
+
+#modelo 2
+```{r}
+model_desp_good <- svm(Total~., desp, type = 'eps-regression')
+ggplot(aes(x=Fecha), data=desp) +
+  geom_point(aes(x = Fecha, y = Total), colour = "red") +
+  geom_line(aes(x = Fecha, y = predict(model_desp_good, newdata = desp)), colour = "blue")+
+  ggtitle("Consum per càpita (Regression Model)") +
+  xlab("") +
+  ylab("")
+
+tune_desp_good <- tune(svm, Total ~ .,  data = desp,
+              ranges = list(epsilon = seq(0,1,0.05), cost =1:10)
+)
+
+plot(tune_desp_good)
+print(tune_desp_good)
+
+tuned_desp_good <- tune_desp_good$best.model
+
+ggplot(data=desp, aes(x=Fecha)) +
+  geom_point(aes(y = Total), color = "black") +
+  geom_line(aes(y = predict(model_desp_good, newdata = desp)), colour = "blue")+
+  geom_line(aes(y = predict(tuned_desp_good, desp)), colour="red")+
+  ggtitle("Consum per càpita (Regression Model)")  +
+ xlab("") +
+  ylab("")
+
+# errors
+
+errors_desp <- desp_test$Total[1:11] - predict(tuned_desp_good, newdata=desp_test)
+errors_desp
+eqm_d <- sum(errors_desp*errors_desp)/11
+eqm_d
+reqm_d <- sqrt(eqm_d)
+reqm_d
+eam_d <- sum(abs(errors_desp))/11
+eam_d
+epam_d <- (sum(abs(errors_desp)/abs(desp_test$Total[1:11]))/11)
+epam_d*100
+
+```
+
+

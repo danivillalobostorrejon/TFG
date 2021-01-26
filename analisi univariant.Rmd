@@ -1,0 +1,137 @@
+---
+title: "Anàlisi Univariant"
+author: "Daniel Villalobos Torrejón"
+date: "11 de noviembre de 2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, warning=FALSE}
+library(ggplot2)
+#install.packages("tidyquant")
+library(tidyverse)
+library(tidyquant)
+library(forecast)
+library(plotly)
+library(stats)
+library(dplyr)
+#install.packages("dygraphs")
+library(dygraphs)
+library(lubridate)
+library(datasets)
+#install.packages("ggfortify")
+library(ggfortify)
+library(Quandl)
+#install.packages("h2o")
+library(h2o)
+#install.packages("TSstudio")
+library(TSstudio)
+```
+
+
+```{r}
+load("cons_tot.Rdata")
+load("vol_tot.Rdata")
+load("gast_tot.Rdata")
+
+```
+
+
+
+#analisis del consum
+```{r}
+
+ggplot(cons_tot, aes(Fecha,Total)) + geom_line(linetype=1, colour="coral2") + xlab("Any" ) + ylab("") + geom_point(size=2, shape=21) + ggtitle("Consum per càpita alimentari a Espanya (2014-2018)")+ theme(plot.title = element_text(hjust = 0.5)) + scale_y_continuous(breaks=c(48,50,52, 54, 56, 58), labels=c("48 Kg", "50 Kg","52Kg", "54Kg", "56Kg", "58 Kg") )
+```
+
+```{r}
+ggplot(gast_tot, aes(Fecha,Total)) + geom_line(linetype=1, colour="coral2") + xlab("Any" ) + ylab("") + geom_point(size=2, shape=21) + ggtitle("Despesa per càpita alimentari a Espanya (2014-2018)")+ theme(plot.title = element_text(hjust = 0.5)) + scale_y_continuous(breaks=c(110, 120, 130,140,150,160), labels=c('110 €', '120 €', '130 €','140 €','150€','160 €') ) 
+```
+
+
+
+#heatmap 
+
+
+```{r}
+install.packages("plyr")
+library(plyr)
+install.packages("plotly")
+library(plotly)
+month <- c("Gener" ,"Febrer", "Març"  , "Abril","Maig" , "Juny" ,"Juliol" ,"Agost","Setembre","Octubre" ,"Novembre", "Desembre")
+df.heatmap <- data.frame()
+month_2 <- rep(month,6)
+
+df.heatmap <- cbind(month_2,cons_tot)
+
+#x <- runif(72,1,1000)
+
+month_lev <- as.factor(rep(1:12,6))
+
+df.heatmap <- cbind(month_lev, df.heatmap)
+any<-as.factor(rep(2014:2019,6, each=12))
+df.heatmap <- cbind(any,df.heatmap)
+#df.heatmap <- cbind(x,df.heatmap)
+
+ggplot(df.heatmap, aes(any,month_lev, fill=Total))+ geom_tile() + scale_fill_gradient(low="white", high="steelblue")  + scale_y_discrete(labels=month) + labs(fill="Consum per càpita") + ylab("") +xlab("") + ggtitle("Mapa de Calor Consum per càpita")+ theme(plot.title = element_text(hjust = 0.5)) 
+  
+```
+       
+       
+       
+```{r}
+month <- c("Gener" ,"Febrer", "Març"  , "Abril","Maig" , "Juny" ,"Juliol" ,"Agost","Setembre","Octubre" ,"Novembre", "Desembre")
+df.heatmap_2 <- data.frame()
+month_2 <- rep(month,6)
+
+df.heatmap_2 <- cbind(month_2,gast_tot)
+
+#x <- runif(72,1,1000)
+
+month_lev <- as.factor(rep(1:12,6))
+
+df.heatmap_2 <- cbind(month_lev, df.heatmap_2)
+any<-as.factor(rep(2014:2019,6, each=12))
+df.heatmap_2 <- cbind(any,df.heatmap_2)
+#df.heatmap <- cbind(x,df.heatmap)
+
+
+
+ggplot(df.heatmap_2, aes(any,month_lev, fill=Total))+ geom_tile() + scale_fill_gradient(low="white", high="steelblue")  + scale_y_discrete(labels=month) + labs(fill="Consum per càpita") + ylab("") +xlab("") + ggtitle("Mapa de Calor gast per càpita")+ theme(plot.title = element_text(hjust = 0.5)) 
+  
+
+```
+       
+       
+       
+```{r}
+ggplot(df.heatmap, aes(month_lev,Total, group = any, color=any))+ geom_line()+ scale_x_discrete(labels=month) + theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +ggtitle("Consum per càpita mensual(2014-2018) ")+ theme(plot.title = element_text(hjust = 0.5)) +scale_y_continuous(breaks=c(48,50,52, 54, 56, 58), labels=c("48 Kg", "50 Kg","52Kg", "54Kg", "56Kg", "58 Kg") ) + ylab("") + xlab("")
+```
+       
+```{r}
+ggplot(df.heatmap_2, aes(month_lev,Total, group = any, color=any))+ geom_line()+ scale_x_discrete(labels=month) + theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +ggtitle("Despesa per càpita mensual(2014-2018) ")+ theme(plot.title = element_text(hjust = 0.5)) +scale_y_continuous(breaks=c(110, 120, 130,140,150,160), labels=c('110 €', '120 €', '130 €','140 €','150€','160 €') )  + ylab("") + xlab("")
+
+```
+       
+```{r}
+prova <- ts(cons_tot$Total, start=c(2014,1), frequency=12)
+ts_lags(prova)
+ts_seasonal(prova)
+prova2 <- ts(gast_tot$Total, start=c(2104,1), frequency =12)
+
+#lag.plot(prova, lags=12, do.lines = F ,col = 1:12,pch=19, cex = 1.2)
+
+gglagplot(prova, lags = 12, do.lines = F,seasonal = T) + theme(axis.text.x.bottom  = element_text(angle = 90)) + theme(legend.position="none") +scale_y_continuous(breaks=c(47.5,57.5) ) + scale_x_continuous(breaks=c(47.5,57.5) ) + ggtitle("Retards del consum")+ theme(plot.title = element_text(hjust = 0.5, size = 11))
+
+gglagplot(prova2, lags = 12, do.lines = F,seasonal = T) + theme(axis.text.x.bottom  = element_text(angle = 90)) + theme(legend.position="none") +scale_y_continuous(breaks=c(110,160) ) + scale_x_continuous(breaks=c(110,160) ) + ggtitle("Retards de la Despesa")+ theme(plot.title = element_text(hjust = 0.5, size = 11))
+
+
+```
+
+
+
+       
+       

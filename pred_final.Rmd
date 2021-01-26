@@ -1,0 +1,210 @@
+---
+title: "predict 20"
+author: "Daniel Villalobos Torrejón"
+date: "10 de enero de 2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(TSstudio)
+library(forecast)
+library(ggplot2)
+#install.packages("prediction")
+library(prediction)
+library(e1071)
+```
+
+```{r}
+load("cons_tot.Rdata")
+load("cons_20.Rdata")
+load("gast_tot.Rdata")
+load("desp_20.Rdata")
+```
+
+```{r}
+
+consumo <- rbind(cons_tot,cons_20)
+
+ggplot(consumo, aes(x=Fecha, y=Total))+geom_line(linetype=1, colour="coral2")+
+xlab("Any" ) + ylab("") + geom_point(size=2, shape=21) + ggtitle("Consum per càpita alimentari a Espanya (2014-2020)")+ theme(plot.title = element_text(hjust = 0.5)) +scale_y_continuous(breaks=c(50, 55,60,65,70), labels=c('50 €', '55 €', '60 €','65 €','70 €') ) 
+
+```
+#CONSUM
+##ARIMA
+
+```{r}
+ts_consumo <- ts(consumo$Total,frequency = 12,start = c(2014,1,end=c(2020,12)))
+cons <- ts(consumo$Total, frequency=12, start = c(2014,1), end = c(2019,12))
+
+adf.test(ts_consumo, alternative = "stationary")
+arima1<- arima(x = cons, order = c(1,0,1), seasonal = list(order = c(1,0,1)))
+
+prediccio <- predict(arima1, n.ahead = 11)
+
+
+ggplot(data=consumo[73:83,],aes(x=Fecha))+
+  geom_line(aes(y=Total), colour="coral2")+
+  geom_point(aes(y=Total),size=2, shape=21)+
+  geom_line(aes(y=prediccio$pred))+ylab("")+
+  geom_point(aes(y=prediccio$pred),size=2, shape=21)+
+  ggtitle("Consum per càpita (Predit vs Real)")
+
+
+
+errors <- cons_20$Total - prediccio$pred
+errors
+
+ts.plot(errors)
+
+eqm <- sum(errors*errors)/12
+eqm
+reqm <- sqrt(eqm)
+reqm
+eam <- sum(abs(errors))/12
+eam
+epam <- (sum(abs(errors)/abs(cons_20$Total))/12)
+epam*100
+```
+
+##SVR
+```{r}
+
+
+train <- consumo[1:72,-3]
+val  <- consumo[73:nrow(consumo),-3]
+
+
+
+
+model <- svm(Total~., train, type = 'eps-regression',epsilon=0,cost=4)
+
+
+tuneResult1 <- tune(svm, Total ~ .,  data = train,
+              ranges = list(epsilon = seq(0,1,0.05), cost =1:10)
+)
+
+tunedVals <- tuneResult1$best.model
+
+prediccio2 <- predict(tunedVals,val)
+
+
+
+ggplot(data=cons_20, aes(x=Fecha)) +
+  geom_point(aes(y = Total), color = "black") +
+   geom_line(aes(y = Total), colour = "red")+
+  geom_line(aes(y = predict(tunedVals, newdata = val)), colour = "blue")+
+   geom_point(aes(y = predict(tunedVals, newdata = val)), color = "black") +
+  ggtitle("Consum per càpita (Predit vs Real)")  +
+ xlab("") +
+  ylab("")
+
+errors <- cons_20$Total - prediccio2
+errors
+
+eqm <- sum(errors*errors)/12
+eqm
+reqm <- sqrt(eqm)
+reqm
+eam <- sum(abs(errors))/12
+eam
+epam <- (sum(abs(errors)/abs(cons_20$Total))/12)
+epam*100
+```
+
+
+#DESPESA
+
+
+```{r}
+despesa <- rbind(gast_tot,desp_20)
+
+ggplot(despesa, aes(x=Fecha, y=Total))+geom_line(linetype=1, colour="coral2")+
+xlab("Any" ) + ylab("") + geom_point(size=2, shape=21) + ggtitle("Despesa per càpita alimentari a Espanya (2014-2020)")+ theme(plot.title = element_text(hjust = 0.5)) + scale_y_continuous(breaks=c(120, 130,140,150,160,170,180), labels=c('120 €', '130 €', '140 €','150 €','160 €','170 €','180 €') ) 
+```
+
+## ARIMA
+```{r}
+ts_despesa <- ts(despesa$Total,frequency = 12,start = c(2014,1,end=c(2020,12)))
+desp <- ts(despesa$Total, frequency=12, start = c(2014,1), end = c(2019,12))
+
+adf.test(ts_despesa, alternative = "stationary")
+arima2<- arima(x = desp, order = c(1,0,1), seasonal = list(order = c(1,0,1)))
+
+prediccio3 <- predict(arima2, n.ahead = 11)
+
+
+ggplot(data=despesa[73:83,],aes(x=Fecha))+
+  geom_line(aes(y=Total), colour="coral2")+
+  geom_point(aes(y=Total),size=2, shape=21)+
+  geom_line(aes(y=prediccio3$pred))+ylab("")+
+  geom_point(aes(y=prediccio3$pred),size=2, shape=21)+
+  ggtitle("Consum per càpita (Predit vs Real)")
+
+
+
+errors <- desp_20$Total - prediccio3$pred
+errors
+
+ts.plot(errors)
+
+eqm <- sum(errors*errors)/12
+eqm
+reqm <- sqrt(eqm)
+reqm
+eam <- sum(abs(errors))/12
+eam
+epam <- (sum(abs(errors)/abs(desp_20$Total))/12)
+epam*100
+```
+
+## SVR 
+```{r}
+train2 <- despesa[1:72,-3]
+val2  <- despesa[73:nrow(consumo),-3]
+
+
+
+
+model <- svm(Total~., train2, type = 'eps-regression',epsilon=0,cost=4)
+
+
+tuneResult <- tune(svm, Total ~ .,  data = train2,
+              ranges = list(epsilon = seq(0,1,0.05), cost =1:10)
+)
+
+tunedVals2 <- tuneResult$best.model
+
+prediccio4 <- predict(tunedVals2,val2)
+
+
+
+ggplot(data=desp_20, aes(x=Fecha)) +
+  geom_point(aes(y = Total), color = "black") +
+   geom_line(aes(y = Total), colour = "red")+
+  geom_line(aes(y = predict(tunedVals2, newdata = val2)), colour = "blue")+
+   geom_point(aes(y = predict(tunedVals2, newdata = val2)), color = "black") +
+  ggtitle("Despesa per càpita (Predit vs Real)")  +
+ xlab("") +
+  ylab("")
+
+
+errors <- desp_20$Total - prediccio4
+errors
+
+
+ts.plot(errors)
+
+eqm <- sum(errors*errors)/12
+eqm
+reqm <- sqrt(eqm)
+reqm
+eam <- sum(abs(errors))/12
+eam
+epam <- (sum(abs(errors)/abs(desp_20$Total))/12)
+epam*100
+```
+
